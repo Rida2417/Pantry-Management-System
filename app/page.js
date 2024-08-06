@@ -2,10 +2,9 @@
 import { useState, useEffect } from 'react';
 import { Typography, Box, Modal, Stack, TextField, Button } from '@mui/material';
 import { firestore } from '@/firebase';
-import { query, collection, getDoc, getDocs, deleteDoc, setDoc, doc } from 'firebase/firestore';
+import { query, collection, getDocs, deleteDoc, setDoc, doc,getDoc } from 'firebase/firestore';
 import SearchBar from './components/SearchBar';
 import WebCamCapture from './components/WebCamCapture';
-
 
 export default function Home() {
   const [pantry, setPantry] = useState([]);
@@ -18,38 +17,45 @@ export default function Home() {
     updatePantry();
   }, []);
 
-  // Fetch Pantry Items
   const updatePantry = async () => {
-    const snapshot = query(collection(firestore, 'pantry'));
-    const docs = await getDocs(snapshot);
-    const pantryList = [];
-    docs.forEach((doc) => {
-      pantryList.push({
-        name: doc.id,
-        ...doc.data(),
+    try {
+      const snapshot = query(collection(firestore, 'pantry'));
+      const docs = await getDocs(snapshot);
+      const pantryList = [];
+      docs.forEach((doc) => {
+        pantryList.push({
+          name: doc.id,
+          ...doc.data(),
+        });
       });
-    });
-    setPantry(pantryList);
-    setSearchResults(pantryList); // Initialize search results
-  };
-
-  // Remove Pantry Item
-  const removeItem = async (item) => {
-    const docRef = doc(collection(firestore, 'pantry'), item);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const { quantity } = docSnap.data();
-      if (quantity === 1) {
-        await deleteDoc(docRef);
-      } else {
-        await setDoc(docRef, { quantity: quantity - 1 });
-      }
+      console.log('Pantry List:', pantryList); // Add console log to check pantry items
+      setPantry(pantryList);
+      setSearchResults(pantryList); // Initialize search results
+    } catch (error) {
+      console.error('Error fetching pantry items:', error);
     }
-    await updatePantry();
   };
 
-  // Add Pantry Item
-  const addItem = async (item) => {
+  const removeItem = async (item) => {
+    try {
+      const docRef = doc(collection(firestore, 'pantry'), item);
+      const docSnap = await getDocs(docRef);
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data();
+        if (quantity === 1) {
+          await deleteDoc(docRef);
+        } else {
+          await setDoc(docRef, { quantity: quantity - 1 });
+        }
+      }
+      await updatePantry();
+    } catch (error) {
+      console.error('Error removing item:', error);
+    }
+  };
+
+   // Add Pantry Item
+   const addItem = async (item) => {
     const docRef = doc(collection(firestore, 'pantry'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -60,7 +66,7 @@ export default function Home() {
     }
     await updatePantry();
   };
-  // Handle Search
+
   const handleSearch = (query) => {
     const results = pantry.filter((item) =>
       item.name.toLowerCase().includes(query.toLowerCase())
@@ -110,7 +116,6 @@ export default function Home() {
         </Box>
       </Modal>
 
-      {/* Search Bar Component */}
       <SearchBar onSearch={handleSearch} />
 
       <Box border={'0px solid white'} m={5}>
@@ -147,25 +152,23 @@ export default function Home() {
             },
           }} onClick={handleOpen}>Add New Item</Button>
 
-       {/* Button to show webcam */}
-       <Button variant="contained" sx={{
+          <Button variant="contained" sx={{
             backgroundColor: 'darkred', // Background color
             '&:hover': {
               backgroundColor: '#B22222', // Background color on hover
             },
           }} onClick={handleWebcamOpen}>Upload Image</Button>
 
-          {/* Conditionally render the WebcamCapture component */}
           {showWebcam && (
             <Box position="fixed" top={0} left={0} width="100vw" height="100vh" display="flex" justifyContent="center" alignItems="center" bgcolor="rgba(0,0,0,0.5)">
               <Box width="300px" display="flex" flexDirection="column" alignItems="center" bgcolor="floralwhite" p={2} borderRadius={2}>
-                <WebCamCapture onCapture={handleWebcamClose} />
+                <WebCamCapture onAddItem={addItem} onClose={handleWebcamClose} />
                 <Button variant="contained" sx={{
-            backgroundColor: 'darkred', // Background color
-            '&:hover': {
-              backgroundColor: '#B22222', // Background color on hover
-            },mt: 2
-          }} onClick={handleWebcamClose}>Close Webcam</Button>
+                  backgroundColor: 'darkred', // Background color
+                  '&:hover': {
+                    backgroundColor: '#B22222', // Background color on hover
+                  }, mt: 2
+                }} onClick={handleWebcamClose}>Close Webcam</Button>
               </Box>
             </Box>
           )}
